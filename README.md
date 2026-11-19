@@ -1,5 +1,7 @@
 # doc-snap
 
+> Setting this up on a new Mac with an AI agent? Point it at [AGENTS.md](AGENTS.md).
+
 Very fast, one-press webcam capture of documents (quiz sheets, forms, notes) to feed to Claude or any LLM.
 Low-res JPEGs on purpose: small files, still readable.
 
