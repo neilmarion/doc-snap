@@ -89,7 +89,10 @@ The M1 MacBook Air and Pro have a 720p FaceTime camera with **no Center Stage**.
    - **Desk View from an iPhone needs an iPhone 11 or later.** Plain iPhone camera works from iPhone XR.
    - Mount the iPhone on the laptop lid with a Continuity Camera clip (or any phone stand), back camera facing the paper.
    - In doc-snap, press **C** until the iPhone or `... Desk View Camera` shows. Prefer the iPhone camera pointing down if a stand is available: it has autofocus and the paper can fill the frame.
+   - The iPhone and the Mac must be signed in to the **same Apple Account**. The human must do this; you cannot.
+   - iPhone setting: **Settings → General → AirPlay & Continuity** (iOS 18+) or **AirPlay & Handoff** (iOS 16–17) → **Continuity Camera** on. Or search "Continuity" in Settings.
    - Check first that macOS sees it: Photo Booth → **Camera** menu.
+   - If the iPhone must stay on a different Apple Account, a webcam app such as Camo (installed on both devices) also works. doc-snap then lists it as a normal camera. Not tested.
 2. **USB webcam on an arm, pointing down at 40–50 cm** (fixed focus) or a webcam with autofocus.
 
 Check the macOS version first:
