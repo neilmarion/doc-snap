@@ -1,0 +1,5 @@
+.venv/
+config.json
+click.wav
+__pycache__/
+*.jpg
