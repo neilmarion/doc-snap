@@ -80,6 +80,26 @@ Pick the camera with this priority:
 
 If no Desk View and no iPhone shows up, tell the human. Do not continue with a camera that gives blurry text.
 
+### Apple Silicon M1 MacBooks (and other Macs without a Center Stage camera)
+
+The M1 MacBook Air and Pro have a 720p FaceTime camera with **no Center Stage**. So there is **no built-in Desk View**, and the proven MacBook Air setup below does not apply as-is. Use one of these:
+
+1. **iPhone with Continuity Camera (recommended).**
+   - Needs macOS 13 Ventura or later and iOS 16 or later.
+   - **Desk View from an iPhone needs an iPhone 11 or later.** Plain iPhone camera works from iPhone XR.
+   - Mount the iPhone on the laptop lid with a Continuity Camera clip (or any phone stand), back camera facing the paper.
+   - In doc-snap, press **C** until the iPhone or `... Desk View Camera` shows. Prefer the iPhone camera pointing down if a stand is available: it has autofocus and the paper can fill the frame.
+   - Check first that macOS sees it: Photo Booth → **Camera** menu.
+2. **USB webcam on an arm, pointing down at 40–50 cm** (fixed focus) or a webcam with autofocus.
+
+Check the macOS version first:
+
+```bash
+sw_vers -productVersion
+```
+
+If it is below 13, Continuity Camera is not available. Tell the human, and use option 2 or update macOS.
+
 ## Step 5 — Launch
 
 ```bash
@@ -105,7 +125,7 @@ Optional first-run flags (each value is remembered in `config.json`):
 
 ## Step 6 — Physical setup (tell the human)
 
-For **Desk View** (this setup is proven to give legible handwriting):
+For **Desk View** (proven to give legible handwriting on a MacBook Air M4 with its built-in Desk View; with an iPhone Desk View the steps are the same, but the tilt angle may differ):
 
 1. In the doc-snap window, press **C** until the top line says `... Desk View Camera`. It is remembered.
 2. Laptop on a **table**, not on a lap.
