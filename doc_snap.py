@@ -90,7 +90,7 @@ def main():
     p = argparse.ArgumentParser(description="One-press document capture from webcam.")
     p.add_argument("--out", help="Folder to save photos (remembered for next time)")
     p.add_argument("--camera", type=int, help="Camera index (default: auto-detect Logitech)")
-    p.add_argument("--max-side", type=int, default=cfg.get("max_side", 1280), help="Longest side in px (default 1280)")
+    p.add_argument("--max-side", type=int, default=cfg.get("max_side", 1920), help="Longest side in px (default 1920)")
     p.add_argument("--quality", type=int, default=cfg.get("quality", 70), help="JPEG quality 1-100 (default 70)")
     p.add_argument("--prefix", default=cfg.get("prefix", "doc"), help="File name prefix (default 'doc')")
     p.add_argument("--gray", action="store_true", default=cfg.get("gray", False), help="Save in grayscale")
