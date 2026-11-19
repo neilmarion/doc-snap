@@ -17,6 +17,7 @@ First run makes a `.venv` and installs OpenCV. macOS asks for camera access once
 | Key | Action |
 |---|---|
 | SPACE / ENTER / click green bar | Capture (click sound + white flash) |
+| C | Switch camera |
 | G | Toggle grayscale |
 | O | Open output folder |
 | Q / ESC | Quit |
@@ -26,7 +27,7 @@ First run makes a `.venv` and installs OpenCV. macOS asks for camera access once
 | Flag | Default | Meaning |
 |---|---|---|
 | `--out DIR` | `~/Pictures/doc-snap` | Save folder |
-| `--camera N` | auto (Logitech/Brio by name) | Camera index |
+| `--camera N` | auto (Logitech/Brio by name) | Camera index (order printed at start) |
 | `--max-side PX` | 1280 | Longest image side |
 | `--quality Q` | 70 | JPEG quality |
 | `--prefix NAME` | `doc` | File name prefix |

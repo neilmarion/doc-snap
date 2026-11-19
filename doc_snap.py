@@ -2,7 +2,7 @@
 """doc-snap: one-press webcam capture of documents for LLMs.
 
 Keys:  SPACE / ENTER / click CAPTURE button = take photo
-       G = toggle grayscale    O = open output folder    Q / ESC = quit
+       C = switch camera   G = toggle grayscale    O = open output folder    Q / ESC = quit
 """
 import argparse
 import json
@@ -38,20 +38,21 @@ def save_config(cfg):
     CONFIG.write_text(json.dumps(cfg, indent=2))
 
 
-def find_camera_index():
-    """Return the AVFoundation index of a Logitech-looking camera, else None."""
+def camera_names():
+    """Camera names in the SAME order OpenCV uses (AVFoundation devices sorted by uniqueID)."""
     try:
-        out = subprocess.run(
-            ["ffmpeg", "-hide_banner", "-f", "avfoundation", "-list_devices", "true", "-i", ""],
-            capture_output=True, text=True, timeout=10,
-        ).stderr
+        import AVFoundation as AV
+        devs = AV.AVCaptureDevice.devicesWithMediaType_(AV.AVMediaTypeVideo)
+        return [d.localizedName() for d in sorted(devs, key=lambda d: d.uniqueID())]
     except Exception:
-        return None
-    video = out.split("audio devices")[0]
-    for idx, name in re.findall(r"\[(\d+)\] (.+)", video):
+        return []
+
+
+def find_camera_index(names):
+    """Return OpenCV index of a Logitech-looking camera, else None."""
+    for idx, name in enumerate(names):
         if CAMERA_HINTS.search(name):
-            print(f"Using camera [{idx}] {name.strip()}")
-            return int(idx)
+            return idx
     return None
 
 
@@ -102,16 +103,25 @@ def main():
     print(f"Saving to: {out}")
 
     make_click_sound()
-    idx = a.camera if a.camera is not None else find_camera_index()
+    names = camera_names()
+    print("Cameras:", ", ".join(f"[{i}] {n}" for i, n in enumerate(names)) or "unknown")
+    idx = a.camera if a.camera is not None else find_camera_index(names)
     if idx is None:
-        print("Logitech camera not found by name. Using camera 0. Use --camera N to pick another.")
+        print("Logitech camera not found by name. Using camera 0. Press C to switch cameras.")
         idx = 0
+    n_cams = max(len(names), 1)
 
-    cap = cv2.VideoCapture(idx, cv2.CAP_AVFOUNDATION)
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
+    def open_cam(i):
+        c = cv2.VideoCapture(i, cv2.CAP_AVFOUNDATION)
+        c.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
+        c.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
+        print(f"Using camera [{i}] {names[i] if i < len(names) else ''}")
+        return c
+
+    cap = open_cam(idx)
     if not cap.isOpened():
         sys.exit("Could not open camera. Check System Settings > Privacy & Security > Camera for your terminal app.")
+    cam_label = names[idx] if idx < len(names) else f"camera {idx}"
 
     state = {"snap": False}
 
@@ -152,7 +162,7 @@ def main():
         cv2.putText(bar, "CAPTURE  (space)", (20, 45), cv2.FONT_HERSHEY_SIMPLEX, 1.1, (255, 255, 255), 2)
         view = np.vstack([view, bar])
         mouse_param["h"] = view.shape[0]
-        status = f"{count} saved{'  | last: ' + last_name if last_name else ''}  | {'GRAY' if gray else 'COLOR'}"
+        status = f"{cam_label} | {count} saved{'  | last: ' + last_name if last_name else ''}  | {'GRAY' if gray else 'COLOR'}"
         cv2.putText(view, status, (10, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 4)
         cv2.putText(view, status, (10, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 1)
         cv2.imshow(WIN, view)
@@ -166,6 +176,11 @@ def main():
             gray = not gray
             cfg["gray"] = gray
             save_config(cfg)
+        elif key == ord("c") and n_cams > 1:
+            cap.release()
+            idx = (idx + 1) % n_cams
+            cap = open_cam(idx)
+            cam_label = names[idx] if idx < len(names) else f"camera {idx}"
         elif key == ord("o"):
             subprocess.Popen(["open", str(out)])
         if cv2.getWindowProperty(WIN, cv2.WND_PROP_VISIBLE) < 1:
