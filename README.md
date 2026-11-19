@@ -9,7 +9,7 @@ Low-res JPEGs on purpose: small files, still readable.
 ./doc-snap.command --out ~/Documents/quiz-photos
 ```
 
-Or double-click `doc-snap.command` in Finder. The folder is remembered for next time.
+Or double-click `doc-snap.command` in Finder. Always start it from Terminal/Finder, not from inside another app, so macOS camera permission applies to Terminal. The folder is remembered for next time.
 First run makes a `.venv` and installs OpenCV. macOS asks for camera access once.
 
 ## Keys
@@ -34,3 +34,9 @@ First run makes a `.venv` and installs OpenCV. macOS asks for camera access once
 | `--gray` | off | Save grayscale |
 
 Files are named `doc_YYYYMMDD_HHMMSS_mmm.jpg` so they sort in capture order.
+
+## Cameras
+
+Cameras are opened by name through `ffmpeg` (`brew install ffmpeg`), so any macOS camera works,
+including an iPhone via Continuity Camera and "Desk View" (top-down view, good for papers).
+Press **C** to go to the next camera; the list is re-scanned each time, so an iPhone that connects late still shows up.

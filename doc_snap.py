@@ -9,6 +9,7 @@ import json
 import re
 import subprocess
 import sys
+import threading
 import time
 import wave
 from datetime import datetime
@@ -39,21 +40,94 @@ def save_config(cfg):
 
 
 def camera_names():
-    """Camera names in the SAME order OpenCV uses (AVFoundation devices sorted by uniqueID)."""
+    """All video cameras by name (ffmpeg/AVFoundation, incl. iPhone Continuity Camera)."""
     try:
-        import AVFoundation as AV
-        devs = AV.AVCaptureDevice.devicesWithMediaType_(AV.AVMediaTypeVideo)
-        return [d.localizedName() for d in sorted(devs, key=lambda d: d.uniqueID())]
+        out = subprocess.run(
+            ["ffmpeg", "-hide_banner", "-f", "avfoundation", "-list_devices", "true", "-i", ""],
+            capture_output=True, text=True, timeout=10,
+        ).stderr
     except Exception:
         return []
+    video = out.split("audio devices")[0]
+    return [n.strip() for _, n in re.findall(r"\[(\d+)\] (.+)", video) if not n.startswith("Capture screen")]
 
 
 def find_camera_index(names):
-    """Return OpenCV index of a Logitech-looking camera, else None."""
+    """Return index of a Logitech-looking camera, else None."""
     for idx, name in enumerate(names):
         if CAMERA_HINTS.search(name):
             return idx
     return None
+
+
+class FFCam:
+    """Reads frames from a camera by name through ffmpeg. Keeps only the newest frame."""
+
+    def __init__(self, name):
+        self.name, self.frame, self.proc, self.error = name, None, None, ""
+        if not self._start(["-framerate", "30", "-video_size", "1920x1080"]):
+            mode = self._best_mode(self.error)
+            if not (mode and self._start(["-framerate", mode[2], "-video_size", f"{mode[0]}x{mode[1]}"])):
+                self._start([])
+
+    @staticmethod
+    def _best_mode(err):
+        modes = re.findall(r"(\d+)x(\d+)@\[[\d.]+ ([\d.]+)\]fps", err)
+        modes = [m for m in modes if int(m[0]) <= 1920] or modes
+        if not modes:
+            return None
+        return max(modes, key=lambda m: (int(m[0]) * int(m[1]), float(m[2])))
+
+    def _start(self, opts):
+        self.release()
+        cmd = ["ffmpeg", "-hide_banner", "-loglevel", "info", "-f", "avfoundation", *opts,
+               "-i", f"{self.name}:none", "-fps_mode", "passthrough", "-f", "rawvideo", "-pix_fmt", "bgr24", "-"]
+        self.proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        err, size = "", None
+        for raw in iter(self.proc.stderr.readline, b""):
+            line = raw.decode(errors="replace")
+            err += line
+            m = re.search(r"Stream #0:0.*rawvideo.*?(\d{3,5})x(\d{3,5})", line) if "bgr24" in line else None
+            if m:
+                size = (int(m.group(1)), int(m.group(2)))
+                break
+        self.error = err
+        if not size:
+            self.release()
+            return False
+        self.w, self.h = size
+        threading.Thread(target=self._drain_err, daemon=True).start()
+        threading.Thread(target=self._read, daemon=True).start()
+        return True
+
+    def _drain_err(self):
+        proc = self.proc
+        for _ in iter(proc.stderr.readline, b""):
+            pass
+
+    def _read(self):
+        proc, n = self.proc, self.w * self.h * 3
+        while proc and proc.poll() is None:
+            buf = proc.stdout.read(n)
+            if not buf or len(buf) < n:
+                break
+            self.frame = np.frombuffer(buf, np.uint8).reshape(self.h, self.w, 3)
+
+    def isOpened(self):
+        return self.proc is not None and self.proc.poll() is None
+
+    def read(self):
+        f = self.frame
+        return (f is not None), f
+
+    def release(self):
+        if self.proc:
+            self.proc.terminate()
+            try:
+                self.proc.wait(timeout=2)
+            except Exception:
+                self.proc.kill()
+        self.proc, self.frame = None, None
 
 
 def make_click_sound():
@@ -89,7 +163,7 @@ def main():
     cfg = load_config()
     p = argparse.ArgumentParser(description="One-press document capture from webcam.")
     p.add_argument("--out", help="Folder to save photos (remembered for next time)")
-    p.add_argument("--camera", type=int, help="Camera index (default: auto-detect Logitech)")
+    p.add_argument("--camera", type=int, help="Camera number from the list printed at start (default: last used, else Logitech)")
     p.add_argument("--max-side", type=int, default=cfg.get("max_side", 1920), help="Longest side in px (default 1920)")
     p.add_argument("--quality", type=int, default=cfg.get("quality", 70), help="JPEG quality 1-100 (default 70)")
     p.add_argument("--prefix", default=cfg.get("prefix", "doc"), help="File name prefix (default 'doc')")
@@ -116,22 +190,26 @@ def main():
     n_cams = max(len(names), 1)
 
     def open_cam(i):
-        c = cv2.VideoCapture(i, cv2.CAP_AVFOUNDATION)
-        c.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
-        c.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
-        print(f"Using camera [{i}] {names[i] if i < len(names) else ''}")
+        c = FFCam(names[i])
+        print(f"Using camera [{i}] {names[i]}" + ("" if c.isOpened() else "  -> FAILED"))
+        if not c.isOpened():
+            print(c.error[-800:])
         return c
 
+    if not names:
+        sys.exit("No cameras found.")
+    idx = min(idx, len(names) - 1)
     cap = open_cam(idx)
     if not cap.isOpened():
-        sys.exit("Could not open camera. Check System Settings > Privacy & Security > Camera for your terminal app.")
+        print("Could not open camera. Check System Settings > Privacy & Security > Camera for your terminal app.")
+        print("Press C in the window to try the next camera.")
     cam_label = names[idx] if idx < len(names) else f"camera {idx}"
 
-    state = {"snap": False}
+    state = {}
 
     def on_mouse(event, x, y, flags, param):
         if event == cv2.EVENT_LBUTTONDOWN and y >= param["h"] - BTN_H:
-            state["snap"] = True
+            state["go"] = True
 
     mouse_param = {"h": 0}
     cv2.namedWindow(WIN, cv2.WINDOW_NORMAL)
@@ -142,11 +220,11 @@ def main():
     while True:
         ok, frame = cap.read()
         if not ok:
-            time.sleep(0.01)
-            continue
+            frame = np.zeros((540, 960, 3), np.uint8)
+            msg = "Starting camera..." if cap.isOpened() else "Camera failed - press C for next camera"
+            cv2.putText(frame, msg, (30, 270), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 255, 255), 2)
 
-        if state["snap"]:
-            state["snap"] = False
+        if ok and state.pop("go", False):
             img = shrink(frame, a.max_side)
             if gray:
                 img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -173,15 +251,18 @@ def main():
 
         key = cv2.waitKey(1) & 0xFF
         if key in (32, 13):
-            state["snap"] = True
+            state["go"] = True
         elif key in (ord("q"), 27):
             break
         elif key == ord("g"):
             gray = not gray
             cfg["gray"] = gray
             save_config(cfg)
-        elif key == ord("c") and n_cams > 1:
+        elif key == ord("c"):
             cap.release()
+            names = camera_names() or names  # re-scan: picks up an iPhone that just appeared
+            n_cams = len(names)
+            print("Cameras:", ", ".join(f"[{i}] {n}" for i, n in enumerate(names)))
             idx = (idx + 1) % n_cams
             cap = open_cam(idx)
             cam_label = names[idx] if idx < len(names) else f"camera {idx}"
