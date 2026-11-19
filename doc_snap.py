@@ -105,7 +105,11 @@ def main():
     make_click_sound()
     names = camera_names()
     print("Cameras:", ", ".join(f"[{i}] {n}" for i, n in enumerate(names)) or "unknown")
-    idx = a.camera if a.camera is not None else find_camera_index(names)
+    idx = a.camera
+    if idx is None and cfg.get("camera_name") in names:
+        idx = names.index(cfg["camera_name"])  # last camera picked with C
+    if idx is None:
+        idx = find_camera_index(names)
     if idx is None:
         print("Logitech camera not found by name. Using camera 0. Press C to switch cameras.")
         idx = 0
@@ -181,6 +185,9 @@ def main():
             idx = (idx + 1) % n_cams
             cap = open_cam(idx)
             cam_label = names[idx] if idx < len(names) else f"camera {idx}"
+            if idx < len(names):
+                cfg["camera_name"] = names[idx]  # remember for next start
+                save_config(cfg)
         elif key == ord("o"):
             subprocess.Popen(["open", str(out)])
         if cv2.getWindowProperty(WIN, cv2.WND_PROP_VISIBLE) < 1:

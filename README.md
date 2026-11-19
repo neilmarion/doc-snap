@@ -17,7 +17,7 @@ First run makes a `.venv` and installs OpenCV. macOS asks for camera access once
 | Key | Action |
 |---|---|
 | SPACE / ENTER / click green bar | Capture (click sound + white flash) |
-| C | Switch camera |
+| C | Switch camera (remembered for next start) |
 | G | Toggle grayscale |
 | O | Open output folder |
 | Q / ESC | Quit |
