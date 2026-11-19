@@ -2,7 +2,7 @@
 """doc-snap: one-press webcam capture of documents for LLMs.
 
 Keys:  SPACE / ENTER / click CAPTURE button = take photo
-       C = switch camera   G = toggle grayscale    O = open output folder    Q / ESC = quit
+       C = switch camera   R = rotate 90°   G = toggle grayscale    O = open output folder    Q / ESC = quit
 """
 import argparse
 import json
@@ -217,6 +217,8 @@ def main():
 
     count, last_name, flash_until = 0, "", 0.0
     gray = a.gray
+    rot = cfg.get("rotate", {}).get(cam_label, 0)  # quarter turns clockwise, per camera
+    ROT = {1: cv2.ROTATE_90_CLOCKWISE, 2: cv2.ROTATE_180, 3: cv2.ROTATE_90_COUNTERCLOCKWISE}
     while True:
         ok, frame = cap.read()
         if not ok:
@@ -224,6 +226,8 @@ def main():
             msg = "Starting camera..." if cap.isOpened() else "Camera failed - press C for next camera"
             cv2.putText(frame, msg, (30, 270), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 255, 255), 2)
 
+        if ok and rot:
+            frame = cv2.rotate(frame, ROT[rot])
         if ok and state.pop("go", False):
             img = shrink(frame, a.max_side)
             if gray:
@@ -266,9 +270,14 @@ def main():
             idx = (idx + 1) % n_cams
             cap = open_cam(idx)
             cam_label = names[idx] if idx < len(names) else f"camera {idx}"
+            rot = cfg.get("rotate", {}).get(cam_label, 0)
             if idx < len(names):
                 cfg["camera_name"] = names[idx]  # remember for next start
                 save_config(cfg)
+        elif key == ord("r"):
+            rot = (rot + 1) % 4
+            cfg.setdefault("rotate", {})[cam_label] = rot
+            save_config(cfg)
         elif key == ord("o"):
             subprocess.Popen(["open", str(out)])
         if cv2.getWindowProperty(WIN, cv2.WND_PROP_VISIBLE) < 1:
