@@ -41,3 +41,13 @@ Files are named `doc_YYYYMMDD_HHMMSS_mmm.jpg` so they sort in capture order.
 Cameras are opened by name through `ffmpeg` (`brew install ffmpeg`), so any macOS camera works,
 including an iPhone via Continuity Camera and "Desk View" (top-down view, good for papers).
 Press **C** to go to the next camera; the list is re-scanned each time, so an iPhone that connects late still shows up.
+
+## Setup that works (MacBook Air, no extra camera)
+
+1. Pick **MacBook Air Desk View Camera** with **C**.
+2. Tilt the screen to about **100°**.
+3. Lay the sheet flat, right in front of the laptop, so it fills most of the picture.
+4. Press **R** twice once, so the text is upright (saved for next time).
+5. Good, even light. Keep arms out of the frame. Press **SPACE**.
+
+Fixed-focus webcams (e.g. Logitech Brio 100) need ~40–50 cm distance to be sharp.
